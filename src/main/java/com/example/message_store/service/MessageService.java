@@ -36,7 +36,7 @@ public class MessageService {
     public Message update(UUID id, MessageCreateRequest newMessage) {
         Message existingMessage = messageRepository.findById(id).orElse(null);
         if (existingMessage == null) {
-            return null;
+            throw new MessageNotFoundException("Message not found with id: " + id);
         }
         existingMessage.setContent(newMessage.content());
         return messageRepository.save(existingMessage);

@@ -36,7 +36,7 @@ class MessageServiceTest {
     }
 
     @Test
-    void testGetAll() {
+    void testGetAll_Ok() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<Message> page = new PageImpl<>(List.of(new Message("content", new Client())));
         when(messageRepository.findAll(pageable)).thenReturn(page);
@@ -48,7 +48,7 @@ class MessageServiceTest {
     }
 
     @Test
-    void testGetById() {
+    void testGetById_oK() {
         UUID id = UUID.randomUUID();
         Message message = new Message("content", new Client());
         when(messageRepository.findById(id)).thenReturn(Optional.of(message));
@@ -61,7 +61,7 @@ class MessageServiceTest {
     }
 
     @Test
-    void testGetByIdNotFound() {
+    void testGetById_MessageNotFoundException() {
         UUID id = UUID.randomUUID();
         when(messageRepository.findById(id)).thenReturn(Optional.empty());
 
@@ -70,7 +70,7 @@ class MessageServiceTest {
     }
 
     @Test
-    void testSave() {
+    void testSave_Ok() {
         MessageCreateRequest request = new MessageCreateRequest("content");
         Client client = new Client();
         Message message = new Message("content", client);
@@ -84,7 +84,7 @@ class MessageServiceTest {
     }
 
     @Test
-    void testUpdate() {
+    void testUpdate_Ok() {
         UUID id = UUID.randomUUID();
         Message existingMessage = new Message("old content", new Client());
         MessageCreateRequest newMessage = new MessageCreateRequest("new content");
@@ -95,25 +95,34 @@ class MessageServiceTest {
 
         assertNotNull(result);
         assertEquals("new content", result.getContent());
+
         verify(messageRepository, times(1)).findById(id);
         verify(messageRepository, times(1)).save(existingMessage);
     }
 
     @Test
-    void testUpdateNotFound() {
+    void testUpdate_MessageNotFoundException() {
         UUID id = UUID.randomUUID();
         MessageCreateRequest newMessage = new MessageCreateRequest("new content");
         when(messageRepository.findById(id)).thenReturn(Optional.empty());
 
-        Message result = messageService.update(id, newMessage);
+        assertThrows(MessageNotFoundException.class, () -> messageService.update(id, newMessage));
 
-        assertNull(result);
         verify(messageRepository, times(1)).findById(id);
         verify(messageRepository, never()).save(any(Message.class));
     }
 
     @Test
-    void testDeleteById() {
+    void testDeleteById_Ok() {
+        UUID id = UUID.randomUUID();
+
+        messageService.deleteById(id);
+
+        verify(messageRepository, times(1)).deleteById(id);
+    }
+
+    @Test
+    void testDeleteById_MessageNotFoundException() {
         UUID id = UUID.randomUUID();
 
         messageService.deleteById(id);

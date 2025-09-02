@@ -8,7 +8,6 @@ import com.example.message_store.model.Message;
 import com.example.message_store.service.ClientService;
 import com.example.message_store.service.MessageService;
 import com.example.message_store.util.JwtUtil;
-import org.apache.tomcat.util.http.parser.Authorization;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
@@ -30,6 +29,8 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -47,7 +48,7 @@ class MessageControllerTest {
     @MockitoBean
     private ClientService clientService;
 
-    @MockitoBean
+    @MockitoBean(name = "messageSecurity")
     private MessageSecurity messageSecurity;
 
     @MockitoBean
@@ -87,7 +88,6 @@ class MessageControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "client1")
     void testCreateMessage_Created() throws Exception {
         UUID id = UUID.randomUUID();
         Client client = new Client(id, "client1");
@@ -110,8 +110,7 @@ class MessageControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "client1")
-    void testUpdateMessage() throws Exception {
+    void testUpdateMessage_Ok() throws Exception {
         UUID message_id = UUID.randomUUID();
 
         Client client = new Client(message_id, "client1");
@@ -132,18 +131,44 @@ class MessageControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "client1")
-    void testDeleteMessage() throws Exception {
+    void testUpdateMessage_Forbidden() throws Exception {
+        UUID message_id = UUID.randomUUID();
+
+        Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client2");
+        Mockito.when(messageSecurity.isAuthorizedToManageMessage(eq(message_id), any())).thenReturn(false);
+
+        String json = "{\"content\": \"Updated message\"}";
+
+        mockMvc.perform(put("/api/v1/messages/{id}", message_id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + CLIENT_JWT_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testDeleteMessage_Ok() throws Exception {
         UUID id = UUID.randomUUID();
 
         Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client1");
         Mockito.when(messageSecurity.isAuthorizedToManageMessage(eq(id), any())).thenReturn(true);
 
         mockMvc.perform(delete("/api/v1/messages/{id}", id)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + CLIENT_JWT_TOKEN)
-                        .principal(Authorization))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + CLIENT_JWT_TOKEN))
                 .andExpect(status().isNoContent());
 
-        Mockito.verify(messageService).deleteById(id);
+        verify(messageService).deleteById(id);
+    }
+
+    @Test
+    void testDeleteMessage_Forbidden() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client1");
+        Mockito.when(messageSecurity.isAuthorizedToManageMessage(eq(id), any())).thenReturn(false);
+
+        mockMvc.perform(delete("/api/v1/messages/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + CLIENT_JWT_TOKEN))
+                .andExpect(status().isForbidden());
     }
 }
