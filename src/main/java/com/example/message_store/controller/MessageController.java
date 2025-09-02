@@ -21,14 +21,14 @@ import java.net.URI;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/messages")
+@RequestMapping("/api/v1/messages/")
 @AllArgsConstructor
 public class MessageController {
 
     private final MessageService messageService;
     private final ClientService clientService;
 
-    @GetMapping("/{id}")
+    @GetMapping("{id}")
     public ResponseEntity<MessageResponse> getById(@PathVariable UUID id, Authentication auth) {
         Message message = messageService.getById(id);
         return ResponseEntity.ok(MessageResponse.from(message));
@@ -49,14 +49,14 @@ public class MessageController {
         return ResponseEntity.created(location).body(MessageResponseWithId.from(createdMessage));
     }
 
-    @PutMapping(value = "/{id}", consumes = "application/json")
+    @PutMapping(value = "{id}", consumes = "application/json")
     @PreAuthorize("@messageSecurity.isAuthorizedToManageMessage(#id, authentication)")
     public ResponseEntity<MessageResponse> updateMessage(@PathVariable UUID id, @RequestBody @Valid MessageCreateRequest messageDTO, Authentication authentication) {
         Message updatedMessage = messageService.update(id, messageDTO);
         return ResponseEntity.ok(MessageResponse.from(updatedMessage));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("{id}")
     @PreAuthorize("@messageSecurity.isAuthorizedToManageMessage(#id, authentication)")
     public ResponseEntity<Void> deleteMessage(@PathVariable UUID id, Authentication authentication) {
         messageService.deleteById(id);

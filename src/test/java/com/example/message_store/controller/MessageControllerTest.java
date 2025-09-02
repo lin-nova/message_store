@@ -29,7 +29,6 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -58,41 +57,36 @@ class MessageControllerTest {
 
     @Test
     @WithMockUser(username = "client1")
-    void testGetById_Ok() throws Exception {
-        UUID id = UUID.randomUUID();
-        Message message = new Message();
-        message.setUuid(id);
-        message.setContent("Hello World");
+    void getById_returnsMessage_whenMessageExists() throws Exception {
+        UUID messageId = UUID.randomUUID();
 
-        Mockito.when(messageService.getById(id)).thenReturn(message);
+        Message message = Message.builder().uuid(messageId).content("Message 1").build();
 
-        mockMvc.perform(get("/api/v1/messages/{id}", id))
+        Mockito.when(messageService.getById(messageId)).thenReturn(message);
+
+        mockMvc.perform(get("/api/v1/messages/{id}", messageId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").value("Hello World"));
+                .andExpect(jsonPath("$.content").value(("Message 1")));
     }
 
     @Test
     @WithMockUser(username = "client1")
-    void testGetAll_Ok() throws Exception {
-        Message msg = new Message();
-        msg.setUuid(UUID.randomUUID());
-        msg.setContent("Message 1");
+    void getAll_returnsMessagesPage_whenMessagesExist() throws Exception {
+        Message msg = Message.builder().uuid(UUID.randomUUID()).content("Message 1").build();
 
         Page<Message> page = new PageImpl<>(List.of(msg));
         Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client1");
         Mockito.when(messageService.getAll(any(PageRequest.class))).thenReturn(page);
 
-        mockMvc.perform(get("/api/v1/messages").param("page", "0").param("size", "10"))
+        mockMvc.perform(get("/api/v1/messages/").param("page", "0").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].content").value("Message 1"));
     }
 
     @Test
-    void testCreateMessage_Created() throws Exception {
-        UUID id = UUID.randomUUID();
-        Client client = new Client(id, "client1");
-
-        Message msg = new Message(id, "Message for client1", client);
+    void createMessage_returnsCreated_whenValidRequest() throws Exception {
+        Client client = Client.builder().uuid(UUID.randomUUID()).username("client1").build();
+        Message msg = Message.builder().uuid(UUID.randomUUID()).content("Message for client1").build();
 
         Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client1");
         Mockito.when(clientService.getClientByUsername("client1")).thenReturn(client);
@@ -100,7 +94,7 @@ class MessageControllerTest {
 
         String json = "{\"content\": \"new message\"}";
 
-        mockMvc.perform(post("/api/v1/messages")
+        mockMvc.perform(post("/api/v1/messages/")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + CLIENT_JWT_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
@@ -110,15 +104,14 @@ class MessageControllerTest {
     }
 
     @Test
-    void testUpdateMessage_Ok() throws Exception {
+    void updateMessage_returnsOk_whenAuthorized() throws Exception {
         UUID message_id = UUID.randomUUID();
 
-        Client client = new Client(message_id, "client1");
-        Message updated = new Message(message_id, "Updated message", client);
+        Message updatedMessage = Message.builder().uuid(UUID.randomUUID()).content("Updated message").build();
 
         Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client1");
         Mockito.when(messageSecurity.isAuthorizedToManageMessage(eq(message_id), any())).thenReturn(true);
-        Mockito.when(messageService.update(eq(message_id), any(MessageCreateRequest.class))).thenReturn(updated);
+        Mockito.when(messageService.update(eq(message_id), any(MessageCreateRequest.class))).thenReturn(updatedMessage);
 
         String json = "{\"content\": \"Updated message\"}";
 
@@ -131,7 +124,7 @@ class MessageControllerTest {
     }
 
     @Test
-    void testUpdateMessage_Forbidden() throws Exception {
+    void updateMessage_returnsForbidden_whenNotAuthorized() throws Exception {
         UUID message_id = UUID.randomUUID();
 
         Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client2");
@@ -147,7 +140,7 @@ class MessageControllerTest {
     }
 
     @Test
-    void testDeleteMessage_Ok() throws Exception {
+    void deleteMessage_returnsNoContent_whenAuthorized() throws Exception {
         UUID id = UUID.randomUUID();
 
         Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client1");
@@ -161,7 +154,7 @@ class MessageControllerTest {
     }
 
     @Test
-    void testDeleteMessage_Forbidden() throws Exception {
+    void deleteMessage_returnsForbidden_whenNotAuthorized() throws Exception {
         UUID id = UUID.randomUUID();
 
         Mockito.when(jwtUtil.extractUsername(CLIENT_JWT_TOKEN)).thenReturn("client1");
