@@ -32,7 +32,7 @@ Before running the application, ensure you have the following installed:
 ## API Documentation
 The application includes an OpenAPI (Swagger) specification for exploring and testing the API endpoints. Once the application is running, navigate to:
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:8080/swagger-ui/index.html
 ```
 
 ## Testing
